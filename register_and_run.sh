@@ -30,7 +30,7 @@ fi
 
 # Set the CI_SERVER_URL by resolving the Mesos DNS service name endpoint.
 # Environment variable GITLAB_SERVICE_NAME must be defined in the Marathon app.json
-export CI_SERVER_PORT=$(dig srv _instance._$GITLAB_SERVICE_NAME._tcp.marathon.mesos +short | head -1 | awk '{print $3}')
+export CI_SERVER_PORT=$(dig +short _http._$GITLAB_SERVICE_NAME._tcp.marathon.mesos srv | awk '{print $3}')
 export CI_SERVER_URL=http://$GITLAB_SERVICE_NAME.marathon.mesos:$CI_SERVER_PORT/ci
 
 # Derive the RUNNER_NAME from the MESOS_TASK_ID
