@@ -14,10 +14,10 @@ The GitLab runner can be configured by environment variables. For a complete ove
 The most important ones are:
 
 * `GITLAB_SERVICE_NAME`: The Mesos DNS service name of the GitLab instance, e.g. `gitlab.marathon.mesos`. This strongly depends on your setup, i.e. how you launched GitLab and how you configured Mesos DNS. This is the recommended method to use with DC/OS installations of GitLab. Either this environment variable or `GITLAB_INSTANCE_URL` is **mandatory**.
-* `GITLAB_INSTANCE_URL`: The URL of the GitLab instance to connect to, e.g. `http://gitlab.mycompany.com`. Either this environment variable or `GITLAB_SERVICE_NAME` is **mandatory**.
+* `CI_SERVER_URL`: The URL of the GitLab instance to connect to, e.g. `http://gitlab.mycompany.com`. Either this environment variable or `GITLAB_SERVICE_NAME` is **mandatory**.
 * `REGISTRATION_TOKEN`: The registration token to use with the GitLab instance. See the [docs](https://docs.gitlab.com/ce/ci/runners/README.html) for details. **(mandatory)**
 * `RUNNER_EXECUTOR`: The type of the executor to use, e.g. `shell` or `docker`. See the [executor docs](https://github.com/ayufan/gitlab-ci-multi-runner/blob/master/docs/executors/README.md) for more details. **(mandatory)**
-* `RUNNER_CONCURRENT_BUILDS`: The number of concurrent builds this runner should be able to handel. Default is `1`.
+* `RUNNER_REQUEST_CONCURRENCY`: The number of concurrent builds this runner should be able to handel. Default is `1`.
 * `RUNNER_TAG_LIST`: If you want to use tags in you `.gitlab-ci.yml`, then you need to specify the comma-separated list of tags. This is useful to distinguish the runner types.
 
 ## Using private Docker registries with GitLab Runner
@@ -40,7 +40,7 @@ An example for a shell runner. This enables the build of Docker images.
   "container": {
     "type": "DOCKER",
     "docker": {
-      "image": "mesosphere/dcos-gitlab-runner-service:v9.1.1",
+      "image": "mesosphere/dcos-gitlab-runner-service:v9.4.1",
       "network": "HOST",
       "forcePullImage": true,
       "privileged": true
@@ -82,7 +82,7 @@ Here's an example for a Docker runner, which enables builds *inside* Docker cont
   "container": {
     "type": "DOCKER",
     "docker": {
-      "image": "mesosphere/dcos-gitlab-runner-service:v9.1.1",
+      "image": "mesosphere/dcos-gitlab-runner-service:v9.4.1",
       "network": "HOST",
       "forcePullImage": true,
       "privileged": true

@@ -5,8 +5,8 @@ set -eu
 # Ensure that either GITLAB_SERVICE_NAME or GITLAB_INSTANCE_URL is set. Otherwise we can't register!
 if [ -z ${GITLAB_SERVICE_NAME+x} ]; then
     # Check that
-    if [ -z ${GITLAB_INSTANCE_URL+x} ]; then
-        echo "==> Need to either set GITLAB_SERVICE_NAME to the service name of GitLab (e.g. gitlab.marathon.mesos), or GITLAB_INSTANCE_URL to the URL of the GitLab instance! Exiting..."
+    if [ -z ${CI_SERVER_URL+x} ]; then
+        echo "==> Need to either set GITLAB_SERVICE_NAME to the service name of GitLab (e.g. gitlab.marathon.mesos), or CI_SERVER_URL to the URL of the GitLab instance! Exiting..."
         exit 1
     fi
 fi
@@ -24,11 +24,11 @@ if [ -z ${RUNNER_EXECUTOR+x} ]; then
 fi
 
 # Check for RUNNER_CONCURRENT_BUILDS variable (custom defined variable)
-if [ -z ${RUNNER_CONCURRENT_BUILDS+x} ]; then
+if [ -z ${RUNNER_REQUEST_CONCURRENCY+x} ]; then
     echo "==> Concurrency is set to 1"
+    RUNNER_REQUEST_CONCURRENCY=1
 else
-    sed -i -e "s|concurrent = 1|concurrent = ${RUNNER_CONCURRENT_BUILDS}|g" /etc/gitlab-runner/config.toml
-    echo "==> Concurrency is set to ${RUNNER_CONCURRENT_BUILDS}"
+    echo "==> Concurrency is set to ${RUNNER_REQUEST_CONCURRENCY}"
 fi
 
 # Include the original entrypoint contents
@@ -59,7 +59,7 @@ fi
 # /Include the original entrypoint contents
 
 # Check whether GITLAB_INSTANCE_URL is non-empty. If so, use the GITLAB_INSTANCE_URL directly, if not, use
-if [ -z ${GITLAB_INSTANCE_URL+x} ]; then
+if [ -z ${CI_SERVER_URL+x} ]; then
     # Display the GitLab instance URL discovery method
     echo "==> Using Mesos DNS to discover the GitLab instance URL"
 
@@ -71,10 +71,7 @@ if [ -z ${GITLAB_INSTANCE_URL+x} ]; then
     export CI_SERVER_URL=http://$(mesosdns-resolver --serviceName $GITLAB_SERVICE_NAME --server $MESOS_DNS_SERVER --portIndex 0)
 else
     # Display the GitLab instance URL discovery method
-    echo "==> Using the GITLAB_INSTANCE_URL environment variable to set the GitLab instance URL"
-
-    # Set CI_SERVER_URL to the GITLAB_INSTANCE_URL
-    export CI_SERVER_URL=${GITLAB_INSTANCE_URL}
+    echo "==> Using the CI_SERVER_URL environment variable to set the GitLab instance URL"
 fi
 
 # Derive the RUNNER_NAME from the MESOS_TASK_ID
@@ -91,6 +88,8 @@ export RUNNER_CACHE_DIR=${MESOS_SANDBOX}/cache
 
 # Set the RUNNER_WORK_DIR
 export RUNNER_WORK_DIR=${MESOS_SANDBOX}/work
+
+export DOCKER_DAEMON_ARGS=--storage-driver=overlay
 
 # Create directories
 mkdir -p $RUNNER_BUILDS_DIR $RUNNER_CACHE_DIR $RUNNER_WORK_DIR
@@ -111,8 +110,15 @@ else
     echo ${DOCKER_EXTRA_OPTS}
 fi
 
+
+if [ -z ${DOCKER_VOLUME_DRIVER+x} ]; then
+    DOCKER_VOLUME_DRIVER=overlay
+fi
+
 echo "==> Launching the Docker daemon..."
-dind docker daemon --host=unix:///var/run/docker.sock --storage-driver=overlay $DOCKER_EXTRA_OPTS &
+
+dind dockerd --host=unix:///var/run/docker.sock --storage-driver=${DOCKER_VOLUME_DRIVER}&
+
 
 # Wait for the Docker daemon to start
 while(! docker info > /dev/null 2>&1); do
@@ -125,7 +131,7 @@ echo "==> Docker Daemon is up and running!"
 _getTerminationSignal() {
     echo "Caught SIGTERM signal! Deleting GitLab Runner!"
     # Unregister (by name). See https://gitlab.com/gitlab-org/gitlab-ci-multi-runner/tree/master/docs/commands#by-name
-    gitlab-runner unregister --name ${MESOS_TASK_ID}
+    gitlab-ci-multi-runner unregister --name ${MESOS_TASK_ID}
     # Exit with error code 0
     exit 0
 }
@@ -134,7 +140,10 @@ _getTerminationSignal() {
 trap _getTerminationSignal TERM
 
 # Register the runner
-gitlab-runner register
+gitlab-ci-multi-runner register \
+  --name ${MESOS_TASK_ID} \
+  --docker-privileged \
+  --docker-volume-driver ${DOCKER_VOLUME_DRIVER}
 
 # Start the runner
-gitlab-runner run --working-directory=${RUNNER_WORK_DIR} --metrics-server $HOST:$PORT0
+gitlab-ci-multi-runner run --user=gitlab-runner --working-directory=${RUNNER_WORK_DIR} --metrics-server :$PORT0
