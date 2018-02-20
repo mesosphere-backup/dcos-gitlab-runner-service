@@ -9,7 +9,7 @@ ENV DIND_COMMIT 3b5fac462d21ca164b3778647420016315289034
 
 ENV GITLAB_RUNNER_VERSION=9.1.1
 
-ENV DOCKER_ENGINE_VERSION=1.13.1-0~ubuntu-xenial
+ENV DOCKER_ENGINE_VERSION=17.05.0~ce-0~ubuntu-xenial
 
 # Install components and do the preparations
 # 1. Install needed packages
